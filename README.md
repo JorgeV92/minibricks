@@ -2,7 +2,7 @@
 
 **Minibricks** is a small, SQLite-first C++ platform for user data + tiny machine learning workflows.
 
-Think of it as a **mini Databricks-style starter repo**, but aimed at:
+Think of it as a **mini data**, but aimed at:
 
 - local development,
 - embedded / desktop workloads,
