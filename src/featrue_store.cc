@@ -87,4 +87,43 @@ void FeatureStore::SeedDemoData() const {
   });
 }
 
+void FeatureStore::MaterializeUserFeatures() const {
+  db_->WithTransaction([this]() {
+    db_->Execute("DELETE FROM user_features;");
+    db_->Execute(R"SQL(
+      INSERT INTO user_features(
+        user_id,
+        age,
+        sessions_7d,
+        spend_30d,
+        support_tickets_30d,
+        label,
+        updated_at
+      )
+      SELECT
+        u.id,
+        CAST(u.age AS REAL),
+        COALESCE(SUM(CASE
+          WHEN e.event_type = 'session'
+           AND e.ts >= datetime('now', '-7 day') THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE
+          WHEN e.event_type = 'purchase'
+           AND e.ts >= datetime('now', '-30 day') THEN e.amount ELSE 0 END), 0.0),
+        COALESCE(SUM(CASE
+          WHEN e.event_type = 'support_ticket'
+           AND e.ts >= datetime('now', '-30 day') THEN 1 ELSE 0 END), 0),
+        CASE
+          WHEN COALESCE(SUM(CASE
+            WHEN e.event_type = 'purchase'
+             AND e.ts >= datetime('now', '-30 day') THEN e.amount ELSE 0 END), 0.0) >= 80.0
+          THEN 1 ELSE 0
+        END,
+        datetime('now')
+      FROM users u
+      LEFT JOIN user_events e ON e.user_id = u.id
+      GROUP BY u.id, u.age;
+    )SQL");
+  });
+}
+
 } // namespace minibricks
